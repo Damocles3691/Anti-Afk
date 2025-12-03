@@ -1,0 +1,126 @@
+; Made by hellorahat
+#SingleInstance, Force
+SendMode Input
+
+global isScriptEnabled := true
+global isGuiVisible := true
+global minutesLeft := 12
+global gachaMinutesLeft := 30
+
+if not A_IsAdmin {
+    admin_title := "Run as Admin?"
+    admin_message := "
+    (
+        Anti-AFK has the option to temporarily block
+        keystrokes when running as Admin.
+
+        This is optional but be aware keystrokes may
+        leak into the target window if you are typing
+        whilst Anti-AFK is interacting with it.
+    )"
+    MsgBox, 4, %admin_title%, %admin_message%
+    IfMsgBox Yes
+        Run *RunAs "%A_AhkPath%" "%A_ScriptFullPath%"
+    ExitApp
+}
+
+createGui()
+SetTimer, CountdownTick, 60000
+SetTimer, GachaCountdownTick, 60000
+
+Loop {
+    if(!isScriptEnabled || minutesLeft > 0) {
+        Sleep 1000
+        continue
+    }
+
+    minutesLeft := 12
+    UpdateGuiText()
+
+    WinGet, winid,, A
+    WinGet, robloxClients, List, ahk_exe RobloxPlayerBeta.exe
+    BlockInput, On
+    Loop, %robloxClients% {
+        WinSet, Transparent, 0, % "ahk_id " robloxClients%A_Index%
+        WinActivate, % "ahk_id " robloxClients%A_Index%
+        Sleep 10
+        Send {f Down}
+        Sleep 50
+        Send {f Up}
+        Sleep 10
+        ; WinRestore, % "ahk_id " robloxClients%A_Index%
+        WinMinimize, % "ahk_id " robloxClients%A_Index%
+        WinSet, Transparent, OFF, % "ahk_id " robloxClients%A_Index%
+    }
+    BlockInput, Off
+    WinActivate, ahk_id %winid%
+
+}
+
+]::ToggleGui()
+[::ToggleScript()
+\::ResetGachaTimer()
+
+createGui() {
+    global guiText
+    Gui +AlwaysOnTop -Caption +ToolWindow +E0x20
+    Gui Color, 0x222222
+    Gui Font, s10 cWhite, Segoe UI
+    Gui Add, Text, vguiText w220 h120 center
+    UpdateGuiText()
+    SysGet, screenW, 78
+    SysGet, screenH, 79
+    xPos := screenW - 240
+    yPos := screenH - 150
+    Gui Show, x%xPos% y%yPos% w220 h100, AntiAFK_GUI
+}
+
+UpdateGuiText() {
+    global isScriptEnabled, minutesLeft, gachaMinutesLeft, guiText
+    status := isScriptEnabled ? "Active" : "Suspended"
+    GuiControl,, guiText, % "Anti-AFK: " status
+        . "`nNext Scroll Gacha: " gachaMinutesLeft " min"
+        . "`nNext Anti-AFK Action: " minutesLeft " min"
+        . "`nToggle GUI: ']'  Toggle Script: '['"
+        . "`nPress \ to reset gacha timer"
+}
+
+ToggleGui() {
+    global isGuiVisible
+    isGuiVisible := !isGuiVisible
+    if (isGuiVisible)
+        Gui Show
+    else
+        Gui Hide
+}
+
+ToggleScript() {
+    global isScriptEnabled
+    isScriptEnabled := !isScriptEnabled
+    UpdateGuiText()
+}
+
+ResetGachaTimer() {
+    global gachaMinutesLeft
+    gachaMinutesLeft := 30
+    SetTimer, GachaCountdownTick, Off
+    SetTimer, GachaCountdownTick, 60000
+    UpdateGuiText()
+}
+
+CountdownTick:
+if (isScriptEnabled && minutesLeft > 0) {
+    minutesLeft -= 1
+    UpdateGuiText()
+}
+return
+
+GachaCountdownTick:
+if (gachaMinutesLeft > 0) {
+    gachaMinutesLeft -= 1
+    if(gachaMinutesLeft == 0) {
+        SoundBeep, 750, 200
+    }
+    UpdateGuiText()
+}
+return
